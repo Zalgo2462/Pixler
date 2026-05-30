@@ -1,16 +1,16 @@
 import { useApplication } from '@pixi/react';
-import {
-    Graphics,
-    Container,
-    Application,
-    FederatedPointerEvent,
-} from 'pixi.js';
-import { Viewport } from 'pixi-viewport';
-import { useEffect, useMemo, useRef, type Ref } from 'react';
-import type { PixlerAppState } from './AppState';
-import type { PixlerImg, ContentBounds } from './img';
 import type { Result } from 'neverthrow';
 import { err, ok } from 'neverthrow';
+import { Viewport } from 'pixi-viewport';
+import {
+    Application,
+    Container,
+    FederatedPointerEvent,
+    Graphics,
+} from 'pixi.js';
+import { useEffect, useMemo, useRef } from 'react';
+import type { PixlerAppState } from './AppState';
+import type { ContentBounds, PixlerImg } from './img';
 
 const PIXEL_SCALE = 5; //number of screen pixels to draw per image pixel
 
@@ -33,7 +33,6 @@ const drawImage = (
     destroyableRefs: DestroyableRegistry,
     destroyableKeysInUse: Set<string>,
 ): Result<void, DrawError> => {
-    console.log('Drawing image with state:', state);
     if (!state.pixlerImg) {
         return ok();
     }
@@ -115,6 +114,7 @@ const drawImage = (
             imgBounds.height,
         );
         borderGraphics.stroke();
+        borderGraphics.zIndex = 100;
         destroyableRefs[borderGraphicsKey] = borderGraphics;
         mainContainer.addChild(borderGraphics);
         destroyableKeysInUse.add(borderGraphicsKey);
@@ -125,9 +125,9 @@ const drawImage = (
 };
 
 const drawGrid = (
-    app: Application,
+    _app: Application,
     state: PixlerAppState,
-    viewport: Viewport,
+    _viewport: Viewport,
     mainContainer: Container,
     destroyableRefs: DestroyableRegistry,
     destroyableKeysInUse: Set<string>,
@@ -178,7 +178,7 @@ const determineCenteredImageContentBounds = (img: PixlerImg): ContentBounds => {
 
 const drawCursorOnEvent = (
     e: FederatedPointerEvent,
-    app: Application,
+    _app: Application,
     state: PixlerAppState,
     viewport: Viewport,
     mainContainer: Container,
@@ -287,7 +287,7 @@ export const PixlerPixiApp = (props: {
     const pointerEventsDestroyableKeys = useRef<Set<string>>(new Set<string>());
 
     const { viewport, mainContainer } = useMemo(() => {
-        if (!isInitialised) {
+        if (!isInitialised || !app || !app.renderer) {
             return {
                 viewport: null,
                 mainContainer: null,
@@ -311,14 +311,20 @@ export const PixlerPixiApp = (props: {
     }, [app, isInitialised]);
 
     useEffect(() => {
-        if (!isInitialised) {
+        if (!isInitialised || !app || !app.renderer) {
             return;
         }
         app.renderer.background.color = props.state.backgroundColor;
     }, [app, isInitialised, props.state.backgroundColor]);
 
     useEffect(() => {
-        if (!isInitialised || !viewport || !mainContainer) {
+        if (
+            !isInitialised ||
+            !app ||
+            !app.renderer ||
+            !viewport ||
+            !mainContainer
+        ) {
             return;
         }
         app.stage.addChild(viewport);
@@ -332,14 +338,14 @@ export const PixlerPixiApp = (props: {
     }, [app, isInitialised, viewport, mainContainer]);
 
     useEffect(() => {
-        if (!isInitialised || !viewport) {
+        if (!isInitialised || !app || !app.renderer || !viewport) {
             return;
         }
         viewport.resize(app.screen.width, app.screen.height);
     }, [app, isInitialised, viewport]);
 
     useEffect(() => {
-        if (!isInitialised || !mainContainer) {
+        if (!isInitialised || !app || !app.renderer || !mainContainer) {
             return;
         }
         const toDestroyResult = drawImage(
@@ -351,7 +357,6 @@ export const PixlerPixiApp = (props: {
             drawImageDestoyableKeys.current,
         );
         if (toDestroyResult.isErr()) {
-            console.log('Error drawing image:', toDestroyResult.error.message);
             const { toDestroy, message } = toDestroyResult.error;
             for (const obj of toDestroy) {
                 obj.destroy();
@@ -387,10 +392,6 @@ export const PixlerPixiApp = (props: {
             drawTogglesDestoyableKeys.current,
         );
         if (toDestroyResult.isErr()) {
-            console.log(
-                'Error drawing toggles:',
-                toDestroyResult.error.message,
-            );
             const { toDestroy, message } = toDestroyResult.error;
             for (const obj of toDestroy) {
                 obj.destroy();

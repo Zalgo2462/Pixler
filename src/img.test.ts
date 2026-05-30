@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
 import { read } from 'image-js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 import { pixelArtGridFromImage, PixlerImg as PixlerImage } from './img';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -211,14 +211,6 @@ describe('pixelArtGridFromImage generated fixtures', () => {
         const bottomRight = pixlerImg.getPixel(7, 5);
 
         expect(
-            widthResult.isOk(),
-            `${filename}: expected width to be available`,
-        ).toBe(true);
-        expect(
-            heightResult.isOk(),
-            `${filename}: expected height to be available`,
-        ).toBe(true);
-        expect(
             centerPixelResult.isOk(),
             `${filename}: expected getPixel(1, 1) to succeed`,
         ).toBe(true);
@@ -240,8 +232,6 @@ describe('pixelArtGridFromImage generated fixtures', () => {
         ).toBe(true);
 
         if (
-            widthResult.isErr() ||
-            heightResult.isErr() ||
             centerPixelResult.isErr() ||
             topLeft.isErr() ||
             topRight.isErr() ||
@@ -251,8 +241,8 @@ describe('pixelArtGridFromImage generated fixtures', () => {
             throw new Error(`${filename}: unexpected PixlerImage error`);
         }
 
-        expect(widthResult.value).toBe(8);
-        expect(heightResult.value).toBe(6);
+        expect(widthResult).toBe(8);
+        expect(heightResult).toBe(6);
         expect(centerPixelResult.value).toEqual([235, 157, 52, 255]);
         expect(topLeft.value).toEqual([74, 112, 160, 255]);
         expect(topRight.value).toEqual([210, 130, 175, 255]);

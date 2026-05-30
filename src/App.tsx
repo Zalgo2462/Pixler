@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { Application } from '@pixi/react';
-import { PixlerImg } from './img';
-import { defaultAppState, type PixlerAppState } from './AppState';
-import { PixlerPixiApp } from './PixlerPixiApp';
+import { useCallback, useRef, useState } from 'react';
 import './App.css';
+import { defaultAppState, type PixlerAppState } from './AppState';
+import { PixlerImg } from './img';
+import { PixlerPixiApp } from './PixlerPixiApp';
 
 function App() {
     const [state, setState] = useState<PixlerAppState>(defaultAppState);
@@ -58,6 +58,9 @@ function App() {
                     autoStart
                     sharedTicker
                     resizeTo={pixiContainerRef}
+                    failIfMajorPerformanceCaveat={false}
+                    powerPreference="high-performance"
+                    premultipliedAlpha={true}
                 >
                     <PixlerPixiApp state={state} setError={setError} />
                 </Application>

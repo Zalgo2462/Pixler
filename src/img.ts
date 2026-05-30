@@ -1,6 +1,6 @@
 import { Image, readImg } from 'image-js';
-import { gcd } from './math';
 import { err, ok, Result } from 'neverthrow';
+import { gcd } from './math';
 
 export interface PixelArtGrid {
     scaleX: number;

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@pixi/react": "^8.0.5",
+    "eruda": "^3.4.3",
     "eslint-plugin-neverthrow": "^1.1.4",
     "image-js": "^1.6.1",
     "neverthrow": "^8.2.0",
