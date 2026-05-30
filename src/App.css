@@ -1,0 +1,135 @@
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 20px;
+  padding: 6px;
+  font-family: system-ui, sans-serif;
+  background-color: #090b14;
+  color: #f8f9fb;
+  margin: 0;
+}
+
+.canvas-panel {
+  width: min(100%, 1000px);
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  flex-grow: 1;
+  flex-shrink: 1;
+  background: #111826;
+  border: 1px solid #2d3a55;
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.canvas-panel canvas {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.ctrls-panel {
+  width: min(100%, 600px);
+  flex-grow: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 12px 24px;
+  padding: 0px 6px;
+}
+
+.ctrls-panel h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.ctrls-panel label {
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.upload-label {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+}
+
+.upload-input {
+  grid-column: 2;
+  padding: 10px 12px; /* revisit */
+  cursor: pointer;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid #444;
+  border-radius: 10px;
+  background: #121725;
+  color: #f8f9fb;
+}
+
+.colors-label {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+}
+
+.colors-panel {
+  grid-column: 2;
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.color-panel {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+}
+
+.color-panel input {
+  flex-grow: 1;
+  padding: 0; /* revisit */
+  cursor: pointer;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid #444;
+  border-radius: 10px;
+  background: #121725;
+}
+
+.grid-label {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+}
+
+.grid-input {
+  grid-column: 2;
+  justify-self: start;
+  padding: 0; /* revisit */
+  cursor: pointer;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid #444;
+  border-radius: 10px;
+  background: #121725;
+}
+
+
+.meta,
+.error {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.error {
+  color: #ff7b72;
+}
