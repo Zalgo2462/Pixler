@@ -2,15 +2,11 @@ import { useApplication } from '@pixi/react';
 import type { Result } from 'neverthrow';
 import { err, ok } from 'neverthrow';
 import { Viewport } from 'pixi-viewport';
-import {
-    Application,
-    Container,
-    FederatedPointerEvent,
-    Graphics,
-} from 'pixi.js';
+import { Application, Container, FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useEffect, useMemo, useRef } from 'react';
 import type { PixlerAppState } from './AppState';
-import type { ContentBounds, PixlerImg } from './img';
+import { channelsMatch, PaletteMapping } from './colors';
+import { type ContentBounds, type PixlerImg } from './img';
 
 const PIXEL_SCALE = 5; //number of screen pixels to draw per image pixel
 
@@ -33,7 +29,7 @@ const drawImage = (
     destroyableRefs: DestroyableRegistry,
     destroyableKeysInUse: Set<string>,
 ): Result<void, DrawError> => {
-    if (!state.pixlerImg) {
+    if (!state.pixlerImg || !state.paletteMapping) {
         return ok();
     }
 
@@ -42,7 +38,7 @@ const drawImage = (
     const drawnImgKey = 'drawnImg';
     let drawnImg = destroyableRefs[drawnImgKey] as Graphics | undefined;
     if (!drawnImg) {
-        const drawnImgResult = drawPixlerImg(state.pixlerImg, PIXEL_SCALE);
+        const drawnImgResult = drawPixlerImg(state.pixlerImg, state.paletteMapping, state.enableMapping, PIXEL_SCALE);
         if (drawnImgResult.isErr()) {
             return err({
                 toDestroy: [drawnImgResult.error.toDestroy].flat(),
@@ -57,12 +53,7 @@ const drawImage = (
     viewport.plugins.remove('clamp');
     viewport.plugins.remove('clamp-zoom');
 
-    viewport.resize(
-        app.screen.width,
-        app.screen.height,
-        imgBounds.width,
-        imgBounds.height,
-    );
+    viewport.resize(app.screen.width, app.screen.height, imgBounds.width, imgBounds.height);
 
     const xZoomScale = app.screen.width / imgBounds.width;
     const yZoomScale = app.screen.height / imgBounds.height;
@@ -76,14 +67,8 @@ const drawImage = (
     const screenWidthInWorldPixels = app.screen.width / minZoomScale;
     const screenHeightInWorldPixels = app.screen.height / minZoomScale;
 
-    const horizontalBlankSpace = Math.max(
-        0,
-        (screenWidthInWorldPixels - imgBounds.width) / 2,
-    );
-    const verticalBlankSpace = Math.max(
-        0,
-        (screenHeightInWorldPixels - imgBounds.height) / 2,
-    );
+    const horizontalBlankSpace = Math.max(0, (screenWidthInWorldPixels - imgBounds.width) / 2);
+    const verticalBlankSpace = Math.max(0, (screenHeightInWorldPixels - imgBounds.height) / 2);
     const clampOptions = {
         left: imgBounds.left - imgBounds.width / 2 - horizontalBlankSpace,
         right: imgBounds.right + imgBounds.width / 2 + horizontalBlankSpace,
@@ -97,9 +82,7 @@ const drawImage = (
     });
 
     const borderGraphicsKey = 'borderGraphics';
-    let borderGraphics = destroyableRefs[borderGraphicsKey] as
-        | Graphics
-        | undefined;
+    let borderGraphics = destroyableRefs[borderGraphicsKey] as Graphics | undefined;
     if (!borderGraphics) {
         borderGraphics = new Graphics();
         borderGraphics.strokeStyle = {
@@ -107,12 +90,7 @@ const drawImage = (
             color: 0x000000,
             cap: 'square',
         };
-        borderGraphics.rect(
-            imgBounds.left,
-            imgBounds.top,
-            imgBounds.width,
-            imgBounds.height,
-        );
+        borderGraphics.rect(imgBounds.left, imgBounds.top, imgBounds.width, imgBounds.height);
         borderGraphics.stroke();
         borderGraphics.zIndex = 100;
         destroyableRefs[borderGraphicsKey] = borderGraphics;
@@ -189,14 +167,10 @@ const drawCursorOnEvent = (
         return ok();
     }
 
-    const imgContentBounds = determineCenteredImageContentBounds(
-        state.pixlerImg,
-    );
+    const imgContentBounds = determineCenteredImageContentBounds(state.pixlerImg);
 
     const cursorCrosshairKey = 'cursorCrosshair';
-    let cursorCrosshair = destroyableRefs[cursorCrosshairKey] as
-        | Graphics
-        | undefined;
+    let cursorCrosshair = destroyableRefs[cursorCrosshairKey] as Graphics | undefined;
     if (!cursorCrosshair) {
         cursorCrosshair = drawCursorCrosshair(PIXEL_SCALE, state.cursorColor);
         cursorCrosshair.zIndex = 1000; // ensure crosshair is on top
@@ -223,6 +197,8 @@ const drawCursorOnEvent = (
 
 const drawPixlerImg = (
     img: PixlerImg,
+    paletteMapping: PaletteMapping,
+    enableMapping: boolean,
     scale: number,
 ): Result<Graphics, DrawError> => {
     const graphics = new Graphics();
@@ -235,8 +211,19 @@ const drawPixlerImg = (
                     message: `Error getting pixel at (${x}, ${y}): ${pixelResult.error}`,
                 });
             }
+            let channels = pixelResult.value;
+            if (channelsMatch(channels, img.backgroundColor)) {
+                channels = [0, 0, 0, 0];
+            }
             const [r, g, b, a] = pixelResult.value;
-            const color = (r << 16) | (g << 8) | b;
+            let color = (r << 16) | (g << 8) | b;
+
+            if (enableMapping && color != 0) {
+                console.log(color);
+                color = paletteMapping.mapPixiColor(color);
+                console.log(color);
+            }
+
             graphics.rect(x * scale, y * scale, scale, scale);
             graphics.fill({ color, alpha: a / 255 });
         }
@@ -276,10 +263,7 @@ const drawCursorCrosshair = (scale: number, color: string): Graphics => {
     return graphics;
 };
 
-export const PixlerPixiApp = (props: {
-    state: PixlerAppState;
-    setError: (error: string) => void;
-}) => {
+export const PixlerPixiApp = (props: { state: PixlerAppState; setError: (error: string) => void }) => {
     const { app, isInitialised } = useApplication();
     const destroyableRegistry = useRef<DestroyableRegistry>({});
     const drawImageDestoyableKeys = useRef<Set<string>>(new Set<string>());
@@ -318,13 +302,7 @@ export const PixlerPixiApp = (props: {
     }, [app, isInitialised, props.state.backgroundColor]);
 
     useEffect(() => {
-        if (
-            !isInitialised ||
-            !app ||
-            !app.renderer ||
-            !viewport ||
-            !mainContainer
-        ) {
+        if (!isInitialised || !app || !app.renderer || !viewport || !mainContainer) {
             return;
         }
         app.stage.addChild(viewport);
@@ -375,6 +353,8 @@ export const PixlerPixiApp = (props: {
         app,
         isInitialised,
         props.state.pixlerImg,
+        props.state.paletteMapping,
+        props.state.enableMapping,
         props.setError,
         mainContainer,
     ]);
@@ -469,15 +449,7 @@ export const PixlerPixiApp = (props: {
             }
             pointerEventsDestroyableKeys.current.clear();
         };
-    }, [
-        app,
-        isInitialised,
-        props.state.pixlerImg,
-        props.state.cursorColor,
-        props.setError,
-        mainContainer,
-        viewport,
-    ]);
+    }, [app, isInitialised, props.state.pixlerImg, props.state.cursorColor, props.setError, mainContainer, viewport]);
 
     return null;
 };

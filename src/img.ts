@@ -1,19 +1,8 @@
+import { formatHex, type Color } from 'culori';
 import { Image, readImg } from 'image-js';
 import { err, ok, Result } from 'neverthrow';
-import { gcd } from './math';
-
-export interface PixelArtGrid {
-    scaleX: number;
-    scaleY: number;
-    offsetX: number;
-    offsetY: number;
-}
-
-export type BackgroundDetectionMode = 'top-left' | 'mode';
-
-export interface PixlerCreateOptions {
-    backgroundDetection?: BackgroundDetectionMode;
-}
+import { channelsMatch, imagejsChannelsToColor, nearestColorsFnForPalette, PaletteMapping } from './colors';
+import { pixelArtGridFromImage, type PixelArtGrid } from './grid';
 
 export interface ContentBounds {
     left: number;
@@ -29,23 +18,14 @@ export class PixlerImg {
     private readonly pixelArtGrid: PixelArtGrid;
     private readonly _backgroundColor: number[];
     private readonly _contentBounds: ContentBounds;
+    private _palette: Color[] = []; // readonly, but set in factory rather than constructor
 
-    private constructor(
-        srcImg: Image,
-        pixelArtGrid: PixelArtGrid,
-        options: PixlerCreateOptions,
-    ) {
+    private constructor(srcImg: Image, pixelArtGrid: PixelArtGrid) {
         this.srcImg = srcImg;
         this.pixelArtGrid = pixelArtGrid;
-        const backgroundDetection = options.backgroundDetection ?? 'top-left';
-        this._backgroundColor = determineBackgroundColor(
-            srcImg,
-            backgroundDetection,
-        );
-        this._contentBounds = determineContentBounds(
-            srcImg,
-            this._backgroundColor,
-        );
+        // assume the top left corner is the background. this is the case in almost all sprite sheets
+        this._backgroundColor = srcImg.getPixel(0, 0);
+        this._contentBounds = determineContentBounds(srcImg, this._backgroundColor);
     }
 
     public get backgroundColor(): number[] {
@@ -56,26 +36,37 @@ export class PixlerImg {
         return { ...this._contentBounds };
     }
 
-    public static async create(
-        file: File,
-        options: PixlerCreateOptions = {},
-    ): Promise<Result<PixlerImg, string>> {
+    public get palette(): Color[] {
+        return [...this._palette];
+    }
+
+    public static async create(file: File): Promise<Result<PixlerImg, string>> {
         const bitmap = await createImageBitmap(file);
         const imjsImage = readImg(bitmap);
         bitmap.close();
-        return this.createFromImage(imjsImage, options);
+        return this.createFromImage(imjsImage);
     }
 
-    public static async createFromImage(
-        img: Image,
-        options: PixlerCreateOptions = {},
-    ): Promise<Result<PixlerImg, string>> {
+    public static async createFromImage(img: Image): Promise<Result<PixlerImg, string>> {
         const pixelArtGrid = pixelArtGridFromImage(img);
         if (pixelArtGrid.isErr()) {
             return err(pixelArtGrid.error);
         }
 
-        return ok(new PixlerImg(img, pixelArtGrid.value, options));
+        const pixlerImage = new PixlerImg(img, pixelArtGrid.value);
+
+        // determinePalette requires the scale detection to be completed
+        // so that way it can skip over the redunant pixels.
+        // So, we determine the palette and set it after construction.
+        const paletteResult = determinePalette(pixlerImage);
+        if (paletteResult.isErr()) {
+            return err(paletteResult.error);
+        }
+
+        pixlerImage._palette = paletteResult.value;
+
+        Object.freeze(pixlerImage); // enforce immutability for React
+        return ok(pixlerImage);
     }
 
     public get width(): number {
@@ -95,271 +86,43 @@ export class PixlerImg {
         const imgX = this._contentBounds.left + x * this.pixelArtGrid.scaleX;
         const imgY = this._contentBounds.top + y * this.pixelArtGrid.scaleY;
         const pixel = this.srcImg.getPixel(imgX, imgY);
-        if (pixelsMatch(pixel, this._backgroundColor)) {
-            return ok([0, 0, 0, 0]);
-        }
         return ok(pixel);
     }
-}
 
-export function pixelArtGridFromImage(
-    img: Image,
-): Result<PixelArtGrid, string> {
-    const maxSearchDepth = 4; // depth = 4 results in checking at most 16 rows/ columns for run lengths
-    const horizontalRunLengthsResult = searchForHorizontalRunLengths(
-        img,
-        maxSearchDepth,
-    );
-    if (horizontalRunLengthsResult.isErr()) {
-        return err(horizontalRunLengthsResult.error);
-    }
-    const verticalRunLengthsResult = searchForVerticalRunLengths(
-        img,
-        maxSearchDepth,
-    );
-    if (verticalRunLengthsResult.isErr()) {
-        return err(verticalRunLengthsResult.error);
-    }
-    const scaleXResult = getScaleFromRunLengths(
-        horizontalRunLengthsResult.value,
-    );
-    if (scaleXResult.isErr()) {
-        return err(scaleXResult.error);
-    }
-    const scaleYResult = getScaleFromRunLengths(verticalRunLengthsResult.value);
-    if (scaleYResult.isErr()) {
-        return err(scaleYResult.error);
-    }
-    const offsetXResult =
-        horizontalRunLengthsResult.value[0] % scaleXResult.value;
-    const offsetYResult =
-        verticalRunLengthsResult.value[0] % scaleYResult.value;
-    return ok({
-        scaleX: scaleXResult.value,
-        scaleY: scaleYResult.value,
-        offsetX: offsetXResult,
-        offsetY: offsetYResult,
-    });
-}
-
-function searchForHorizontalRunLengths(
-    img: Image,
-    maxDepth: number,
-): Result<number[], string> {
-    return searchForHorizontalRunLengthsHelper(img, 0, img.height, 0, maxDepth);
-}
-
-function searchForHorizontalRunLengthsHelper(
-    img: Image,
-    startY: number,
-    endY: number,
-    currDepth: number,
-    maxDepth: number,
-): Result<number[], string> {
-    if (startY >= endY) {
-        return err(
-            'searchForHorizontalRunLengths: could not find sample row with enough content',
-        );
-    }
-    if (currDepth > maxDepth) {
-        return err(
-            'searchForHorizontalRunLengths: could not find sample row with enough content',
-        );
-    }
-
-    const midY = Math.floor((startY + endY) / 2);
-    const runLengths = horizontalRunLengths(img, midY);
-    if (runLengths.length >= 3) {
-        // <pad> <content> <pad>
-        return ok(runLengths);
-    }
-    if (endY - startY === 1) {
-        return err(
-            'searchForHorizontalRunLengths: could not find sample row with enough content',
-        );
-    }
-
-    const leftRuns = searchForHorizontalRunLengthsHelper(
-        img,
-        startY,
-        midY,
-        currDepth + 1,
-        maxDepth,
-    );
-    if (leftRuns.isOk()) {
-        return leftRuns;
-    }
-
-    const rightRuns = searchForHorizontalRunLengthsHelper(
-        img,
-        midY + 1,
-        endY,
-        currDepth + 1,
-        maxDepth,
-    );
-    if (rightRuns.isOk()) {
-        return rightRuns;
-    }
-
-    // return the error value up from either left or right since they're the same error
-    return leftRuns;
-}
-
-function searchForVerticalRunLengths(
-    img: Image,
-    maxDepth: number,
-): Result<number[], string> {
-    return searchForVerticalRunLengthsHelper(img, 0, img.width, 0, maxDepth);
-}
-
-function searchForVerticalRunLengthsHelper(
-    img: Image,
-    startX: number,
-    endX: number,
-    currDepth: number,
-    maxDepth: number,
-): Result<number[], string> {
-    if (startX >= endX) {
-        return err(
-            'searchForVerticalRunLengths: could not find sample column with enough content',
-        );
-    }
-    if (currDepth > maxDepth) {
-        return err(
-            'searchForVerticalRunLengths: could not find sample column with enough content',
-        );
-    }
-
-    const midX = Math.floor((startX + endX) / 2);
-    const runLengths = verticalRunLengths(img, midX);
-    if (runLengths.length >= 3) {
-        // <pad> <content> <pad>
-        return ok(runLengths);
-    }
-    if (endX - startX === 1) {
-        return err(
-            'searchForVerticalRunLengths: could not find sample column with enough content',
-        );
-    }
-
-    const leftRuns = searchForVerticalRunLengthsHelper(
-        img,
-        startX,
-        midX,
-        currDepth + 1,
-        maxDepth,
-    );
-    if (leftRuns.isOk()) {
-        return leftRuns;
-    }
-
-    const rightRuns = searchForVerticalRunLengthsHelper(
-        img,
-        midX + 1,
-        endX,
-        currDepth + 1,
-        maxDepth,
-    );
-    if (rightRuns.isOk()) {
-        return rightRuns;
-    }
-
-    return leftRuns;
-}
-
-function horizontalRunLengths(img: Image, y: number): number[] {
-    let currRun = 1;
-    let currPixelValue = img.getPixel(0, y);
-    let runs: number[] = [];
-    for (let i = 1; i < img.width; i++) {
-        let nextPixelValue = img.getPixel(i, y);
-        if (pixelsMatch(currPixelValue, nextPixelValue)) {
-            currRun++;
-        } else {
-            runs.push(currRun);
-            currRun = 1;
-            currPixelValue = nextPixelValue;
-        }
-    }
-    runs.push(currRun);
-    return runs;
-}
-
-function verticalRunLengths(img: Image, x: number): number[] {
-    let currRun = 1;
-    let currPixelValue = img.getPixel(x, 0);
-    let runs: number[] = [];
-    for (let j = 1; j < img.height; j++) {
-        let nextPixelValue = img.getPixel(x, j);
-        if (pixelsMatch(currPixelValue, nextPixelValue)) {
-            currRun++;
-        } else {
-            runs.push(currRun);
-            currRun = 1;
-            currPixelValue = nextPixelValue;
-        }
-    }
-    runs.push(currRun);
-    return runs;
-}
-
-function pixelsMatch(p1: number[], p2: number[]): boolean {
-    if (p1.length != p2.length) {
-        return false;
-    }
-    return p1.every((p1Channel, idx) => p1Channel === p2[idx]);
-}
-
-function getScaleFromRunLengths(runLengths: number[]): Result<number, string> {
-    if (runLengths.length < 3) {
-        return err('getScaleFromRunLengths: invalid run length count');
-    }
-    return ok(runLengths.slice(1, -1).reduce(gcd));
-}
-
-function determineBackgroundColor(
-    img: Image,
-    method: BackgroundDetectionMode,
-): number[] {
-    if (method === 'top-left') {
-        return img.getPixel(0, 0);
-    } else {
-        return modeColor(img);
+    public getDefaultPaletteMapping(paletteByName: Record<string, Color>): Result<PaletteMapping, string> {
+        const nearestColorsFn = nearestColorsFnForPalette(paletteByName);
+        const outColorNames = this._palette.flatMap((color) => nearestColorsFn(color, 1));
+        return PaletteMapping.createPaletteMapping(this._palette, outColorNames, paletteByName);
     }
 }
 
-function modeColor(img: Image): number[] {
-    const colorCounts: Map<string, { color: number[]; count: number }> =
-        new Map();
-    for (let y = 0; y < img.height; y++) {
-        for (let x = 0; x < img.width; x++) {
-            const pixel = img.getPixel(x, y);
-            const key = pixel.join(',');
-            const existing = colorCounts.get(key);
-            if (existing) {
-                existing.count++;
-            } else {
-                colorCounts.set(key, { color: pixel, count: 1 });
+function determinePalette(img: PixlerImg): Result<Color[], string> {
+    const paletteMap: Record<string, Color> = {};
+    for (let y = 0; y < img.height; y += 1) {
+        for (let x = 0; x < img.width; x += 1) {
+            const pixelResult = img.getPixel(x, y);
+            if (pixelResult.isErr()) {
+                return err(pixelResult.error);
             }
+            const channels = pixelResult.value;
+            if (channelsMatch(channels, [0, 0, 0, 0])) {
+                // skip tranparent background
+                // unfortunately we can't skip img.backgroundColor
+                // since sometimes sprites don't set a distinct background color :(
+                continue;
+            }
+            const colorResult = imagejsChannelsToColor(channels);
+            if (colorResult.isErr()) {
+                return err(colorResult.error);
+            }
+            const color = colorResult.value;
+            paletteMap[formatHex(color)] = color;
         }
     }
-
-    let maxCount = 0;
-    let mostCommonColor: number[] = img.getPixel(0, 0);
-    for (const [_, { color, count }] of colorCounts) {
-        if (count > maxCount) {
-            maxCount = count;
-            mostCommonColor = color;
-        }
-    }
-
-    return mostCommonColor;
+    return ok(Object.values(paletteMap));
 }
 
-function determineContentBounds(
-    img: Image,
-    backgroundColor: number[],
-): ContentBounds {
+function determineContentBounds(img: Image, backgroundColor: number[]): ContentBounds {
     let left = img.width,
         right = -1,
         top = img.height,
@@ -367,7 +130,7 @@ function determineContentBounds(
     for (let y = 0; y < img.height; y++) {
         for (let x = 0; x < img.width; x++) {
             const pixel = img.getPixel(x, y);
-            if (!pixelsMatch(pixel, backgroundColor)) {
+            if (!channelsMatch(pixel, backgroundColor)) {
                 if (x < left) left = x;
                 if (x > right) right = x;
                 if (y < top) top = y;

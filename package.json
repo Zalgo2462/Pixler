@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@pixi/react": "^8.0.5",
+    "culori": "^4.0.2",
     "eruda": "^3.4.3",
     "eslint-plugin-neverthrow": "^1.1.4",
     "image-js": "^1.6.1",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/culori": "^4.0.1",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

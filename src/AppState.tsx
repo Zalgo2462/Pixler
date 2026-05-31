@@ -1,21 +1,26 @@
+import type { PaletteMapping } from './colors';
 import { PixlerImg } from './img';
 
 export type PixlerAppState = {
-    fileName: string | null;
-    error: string | null;
-    pixlerImg: PixlerImg | null;
+    fileName: string | undefined;
+    error: string | undefined;
+    pixlerImg: PixlerImg | undefined;
     showGrid: boolean;
     backgroundColor: string;
     gridColor: string;
     cursorColor: string;
+    paletteMapping: PaletteMapping | undefined;
+    enableMapping: boolean;
 };
 
 export const defaultAppState: PixlerAppState = {
-    fileName: null,
-    error: null,
-    pixlerImg: null,
+    fileName: undefined,
+    error: undefined,
+    pixlerImg: undefined,
     showGrid: false,
     backgroundColor: '#ffffff',
     gridColor: '#3e3e3e',
     cursorColor: '#FF0000',
+    paletteMapping: undefined,
+    enableMapping: false,
 };
