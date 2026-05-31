@@ -11,6 +11,7 @@ export type PixlerAppState = {
     cursorColor: string;
     paletteMapping: PaletteMapping | undefined;
     enableMapping: boolean;
+    selectedColorName: string;
 };
 
 export const defaultAppState: PixlerAppState = {
@@ -23,4 +24,5 @@ export const defaultAppState: PixlerAppState = {
     cursorColor: '#FF0000',
     paletteMapping: undefined,
     enableMapping: false,
+    selectedColorName: '',
 };

@@ -18,7 +18,7 @@ export function debugColor(color: Color, label: string = 'Color Log'): void {
     );
 }
 
-export function imagejsChannelsToColor(channels: number[]): Result<Color, string> {
+export function channelsToColor(channels: number[]): Result<Color, string> {
     if (channels.length === 3) {
         return ok({
             mode: 'rgb',

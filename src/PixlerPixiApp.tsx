@@ -1,11 +1,12 @@
 import { useApplication } from '@pixi/react';
+import { formatHex } from 'culori/require';
 import type { Result } from 'neverthrow';
 import { err, ok } from 'neverthrow';
 import { Viewport } from 'pixi-viewport';
 import { Application, Container, FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useEffect, useMemo, useRef } from 'react';
 import type { PixlerAppState } from './AppState';
-import { channelsMatch, PaletteMapping } from './colors';
+import { channelsMatch, channelsToColor, PaletteMapping } from './colors';
 import { type ContentBounds, type PixlerImg } from './img';
 
 const PIXEL_SCALE = 5; //number of screen pixels to draw per image pixel
@@ -195,6 +196,50 @@ const drawCursorOnEvent = (
     return ok();
 };
 
+const handleSetSelectedColorName = (
+    e: FederatedPointerEvent,
+    state: PixlerAppState,
+    viewport: Viewport,
+    setSelectedColorName: (name: string) => void,
+): Result<void, string> => {
+    if (!state.pixlerImg || !state.paletteMapping || !state.enableMapping) {
+        return ok();
+    }
+
+    const imgContentBounds = determineCenteredImageContentBounds(state.pixlerImg);
+    const localPos = viewport.toLocal(e.global);
+    localPos.x = Math.floor(localPos.x / PIXEL_SCALE) * PIXEL_SCALE;
+    localPos.y = Math.floor(localPos.y / PIXEL_SCALE) * PIXEL_SCALE;
+    if (
+        localPos.x < imgContentBounds.left ||
+        localPos.x >= imgContentBounds.right ||
+        localPos.y < imgContentBounds.top ||
+        localPos.y >= imgContentBounds.bottom
+    ) {
+        setSelectedColorName('');
+        return ok();
+    }
+
+    const imgPosX = (localPos.x - imgContentBounds.left) / PIXEL_SCALE;
+    const imgPosY = (localPos.y - imgContentBounds.top) / PIXEL_SCALE;
+    const imgChannelsResult = state.pixlerImg.getPixel(imgPosX, imgPosY);
+    if (imgChannelsResult.isErr()) {
+        return err(imgChannelsResult.error);
+    }
+    const imgChannels = imgChannelsResult.value;
+    const imgColorResult = channelsToColor(imgChannels);
+    if (imgColorResult.isErr()) {
+        return err(imgColorResult.error);
+    }
+    const imgColor = imgColorResult.value;
+    const imgColorHex = formatHex(imgColor);
+    const outputColorHex = state.paletteMapping.mapHexColorToOutputHexColor(imgColorHex);
+    const outputColorName = state.paletteMapping.getNameForOutputColor(outputColorHex);
+    setSelectedColorName(outputColorName);
+    console.log('Setting: ', outputColorName);
+    return ok();
+};
+
 const drawPixlerImg = (
     img: PixlerImg,
     paletteMapping: PaletteMapping,
@@ -219,9 +264,7 @@ const drawPixlerImg = (
             let color = (r << 16) | (g << 8) | b;
 
             if (enableMapping && color != 0) {
-                console.log(color);
                 color = paletteMapping.mapPixiColor(color);
-                console.log(color);
             }
 
             graphics.rect(x * scale, y * scale, scale, scale);
@@ -263,7 +306,11 @@ const drawCursorCrosshair = (scale: number, color: string): Graphics => {
     return graphics;
 };
 
-export const PixlerPixiApp = (props: { state: PixlerAppState; setError: (error: string) => void }) => {
+export const PixlerPixiApp = (props: {
+    state: PixlerAppState;
+    setError: (error: string) => void;
+    setSelectedColorName: (name: string) => void;
+}) => {
     const { app, isInitialised } = useApplication();
     const destroyableRegistry = useRef<DestroyableRegistry>({});
     const drawImageDestoyableKeys = useRef<Set<string>>(new Set<string>());
@@ -410,6 +457,7 @@ export const PixlerPixiApp = (props: { state: PixlerAppState; setError: (error: 
                 destroyableRegistry.current,
                 pointerEventsDestroyableKeys.current,
             );
+            handleSetSelectedColorName(e, props.state, viewport, props.setSelectedColorName);
             if (drawResult.isErr()) {
                 const { toDestroy, message } = drawResult.error;
                 for (const obj of toDestroy) {
@@ -430,6 +478,7 @@ export const PixlerPixiApp = (props: { state: PixlerAppState; setError: (error: 
                 destroyableRegistry.current,
                 pointerEventsDestroyableKeys.current,
             );
+            handleSetSelectedColorName(e, props.state, viewport, props.setSelectedColorName);
             if (drawResult.isErr()) {
                 const { toDestroy, message } = drawResult.error;
                 for (const obj of toDestroy) {
@@ -449,7 +498,16 @@ export const PixlerPixiApp = (props: { state: PixlerAppState; setError: (error: 
             }
             pointerEventsDestroyableKeys.current.clear();
         };
-    }, [app, isInitialised, props.state.pixlerImg, props.state.cursorColor, props.setError, mainContainer, viewport]);
+    }, [
+        app,
+        isInitialised,
+        props.state.pixlerImg,
+        props.state.cursorColor,
+        props.setError,
+        props.setSelectedColorName,
+        mainContainer,
+        viewport,
+    ]);
 
     return null;
 };

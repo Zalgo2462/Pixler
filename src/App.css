@@ -33,13 +33,26 @@
   max-height: 100%;
 }
 
+.selection-panel {
+  display: flex;
+  justify-content: start;
+  width: 100%;
+  padding: 0px 6px 6px 6px;
+  border-bottom: 2px solid var(--border);
+}
+
+.selection-panel p {
+  font: 600 0.9rem/100% var(--sans);
+  color: var(--text);
+}
+
 .ctrls-panel {
   width: min(100%, 600px);
   flex-grow: 0;
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 12px 24px;
-  padding: 0px 6px;
+  padding: 6px 6px 0px 6px;
 }
 
 .ctrls-panel h1 {

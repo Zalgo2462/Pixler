@@ -32,6 +32,12 @@ function App() {
             error,
         }));
     }, []);
+    const setSelectedColorName = useCallback((name: string) => {
+        setState((current) => ({
+            ...current,
+            selectedColorName: name,
+        }));
+    }, []);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -60,6 +66,7 @@ function App() {
             error: undefined,
             pixlerImg: imgResult.value,
             paletteMapping: paletteMappingResult.value,
+            selectedColorName: '',
         }));
     };
 
@@ -108,8 +115,16 @@ function App() {
                     powerPreference="high-performance"
                     premultipliedAlpha={true}
                 >
-                    <PixlerPixiApp state={state} setError={setError} />
+                    <PixlerPixiApp state={state} setError={setError} setSelectedColorName={setSelectedColorName} />
                 </Application>
+            </section>
+
+            <section className="selection-panel">
+                {state.enableMapping ? (
+                    <p>Selected: {state.selectedColorName ?? 'None'} </p>
+                ) : (
+                    <p>Map colors to see the selected bead color...</p>
+                )}
             </section>
 
             <section className="ctrls-panel">

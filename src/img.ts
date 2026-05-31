@@ -1,7 +1,7 @@
 import { formatHex, type Color } from 'culori';
 import { Image, readImg } from 'image-js';
 import { err, ok, Result } from 'neverthrow';
-import { channelsMatch, imagejsChannelsToColor, nearestColorsFnForPalette, PaletteMapping } from './colors';
+import { channelsMatch, channelsToColor, nearestColorsFnForPalette, PaletteMapping } from './colors';
 import { pixelArtGridFromImage, type PixelArtGrid } from './grid';
 
 export interface ContentBounds {
@@ -111,7 +111,7 @@ function determinePalette(img: PixlerImg): Result<Color[], string> {
                 // since sometimes sprites don't set a distinct background color :(
                 continue;
             }
-            const colorResult = imagejsChannelsToColor(channels);
+            const colorResult = channelsToColor(channels);
             if (colorResult.isErr()) {
                 return err(colorResult.error);
             }
