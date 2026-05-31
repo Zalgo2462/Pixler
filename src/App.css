@@ -42,12 +42,12 @@
 }
 
 .selection-panel p {
-  font: 600 0.9rem/100% var(--sans);
+  font: 600 1rem/100% var(--sans);
   color: var(--text);
 }
 
 .selection-panel p.selectedText {
-  font: 600 0.9rem/100% var(--sans);
+  font: 600 1rem/100% var(--sans);
   color: var(--text-h);
 }
 
@@ -67,7 +67,6 @@
 
 .ctrls-panel label {
   font-size: 1rem;
-  font-weight: 600;
   text-align: left;
   color: var(--text-h);
 }
