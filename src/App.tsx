@@ -121,7 +121,7 @@ function App() {
 
             <section className="selection-panel">
                 {state.enableMapping ? (
-                    <p>Selected: {state.selectedColorName ?? 'None'} </p>
+                    <p className="selectedText">Selected: {state.selectedColorName ?? 'None'} </p>
                 ) : (
                     <p>Map colors to see the selected bead color...</p>
                 )}
