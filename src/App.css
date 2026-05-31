@@ -4,8 +4,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 20px;
-  padding: 6px;
+  gap: 6px;
+  padding: 12px;
   font-family: system-ui, sans-serif;
   background-color: #090b14;
   color: #f8f9fb;
