@@ -236,7 +236,6 @@ const handleSetSelectedColorName = (
     const outputColorHex = state.paletteMapping.mapHexColorToOutputHexColor(imgColorHex);
     const outputColorName = state.paletteMapping.getNameForOutputColor(outputColorHex);
     setSelectedColorName(outputColorName);
-    console.log('Setting: ', outputColorName);
     return ok();
 };
 
@@ -503,6 +502,8 @@ export const PixlerPixiApp = (props: {
         isInitialised,
         props.state.pixlerImg,
         props.state.cursorColor,
+        props.state.paletteMapping,
+        props.state.enableMapping,
         props.setError,
         props.setSelectedColorName,
         mainContainer,

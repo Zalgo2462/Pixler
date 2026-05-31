@@ -228,12 +228,13 @@ function App() {
                                     type="checkbox"
                                     checked={state.enableMapping}
                                     disabled={!state.pixlerImg}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                        console.log('setting enable mapping: ', e.target.checked);
                                         setState((current) => ({
                                             ...current,
                                             enableMapping: e.target.checked,
-                                        }))
-                                    }
+                                        }));
+                                    }}
                                 />
                             </div>
                             <div className="mapping-toolbar-buttons">
