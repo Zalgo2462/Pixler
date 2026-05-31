@@ -129,6 +129,7 @@
 }
 
 .bead-mapping-input {
+  color: var(--text-h); 
   padding: 4px 6px;
   cursor: pointer;
   min-width: 36px;
@@ -148,6 +149,9 @@
     z-index: 9999;
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    
+    overflow-y: hidden;
+    overscroll-behavior: none; 
 }
 
 .modal-overlay.full-screen-overlay.visible {
@@ -156,7 +160,7 @@
 
 .modal-content-box.full-screen-content {
     width: 100%;
-    height: 100%;
+    height: 100svh;
     max-width: none;
     border-radius: 0;
     padding: 6px;
@@ -164,6 +168,7 @@
     box-shadow: none;
     display: flex;
     flex-direction: column;
+    overscroll-behavior: none; 
 }
 
 .modal-header {
@@ -172,6 +177,7 @@
     align-items: center;
     border-bottom: 2px solid var(--border);
     padding: 12px 12px;
+    touch-action: none;
 }
 
 .modal-header h2 {
@@ -212,6 +218,7 @@
 }
 
 .mapping-toolbar-button {
+    color: var(--text-h); 
     border: 1px solid var(--border);
     border-radius: 6px;
     font: var(--sans);
@@ -231,6 +238,7 @@
     overflow-y: auto;
     font: var(--sans);
     color: var(--text);
+    overscroll-behavior: contain; 
 }
 
 .zero-state-container {
@@ -277,6 +285,7 @@
     gap: 16px;
     padding: 4px;
     justify-content: center;
+    touch-action: pan-y;
 }
 
 .color-mapping-card {

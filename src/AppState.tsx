@@ -19,7 +19,7 @@ export const defaultAppState: PixlerAppState = {
     pixlerImg: undefined,
     showGrid: false,
     backgroundColor: '#ffffff',
-    gridColor: '#3e3e3e',
+    gridColor: '#000000',
     cursorColor: '#FF0000',
     paletteMapping: undefined,
     enableMapping: false,
