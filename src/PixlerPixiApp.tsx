@@ -227,6 +227,10 @@ const handleSetSelectedColorName = (
         return err(imgChannelsResult.error);
     }
     const imgChannels = imgChannelsResult.value;
+    if (channelsMatch(imgChannels, state.pixlerImg.backgroundColor)) {
+        setSelectedColorName('');
+        return ok();
+    }
     const imgColorResult = channelsToColor(imgChannels);
     if (imgColorResult.isErr()) {
         return err(imgColorResult.error);
