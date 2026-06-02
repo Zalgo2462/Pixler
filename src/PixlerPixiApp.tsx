@@ -245,6 +245,7 @@ const drawPixlerImg = (
     enableMapping: boolean,
     scale: number,
 ): Result<Graphics, DrawError> => {
+    // this function eats RAM... maybe there is a better way?
     const graphics = new Graphics();
     for (let y = 0; y < img.height; y += 1) {
         for (let x = 0; x < img.width; x += 1) {
@@ -259,7 +260,7 @@ const drawPixlerImg = (
             if (channelsMatch(channels, img.backgroundColor)) {
                 channels = [0, 0, 0, 0];
             }
-            const [r, g, b, a] = pixelResult.value;
+            const [r, g, b, a] = channels;
             let color = (r << 16) | (g << 8) | b;
 
             if (enableMapping && color != 0) {
